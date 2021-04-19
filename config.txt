@@ -1,0 +1,16 @@
+# Constants
+CHUNKING_WINDOW_SIZE = 256
+BLOOMFILTER_ERROR_RATE = 0.001
+
+# Directories location
+INDEX_DIR = /Users/seclab/Desktop/exp/wiki/index
+BLOOMFILTER_DIR = /Users/seclab/Desktop/exp/bf/c++
+REPORT_DIR = /Users/seclab/Desktop/exp/report
+MTU = 1500
+
+# Elasticsearch configuration
+ES_ADDR = localhost:9200
+ES_SHARDS = 5
+ES_REPLICAS = 0
+ES_INDEX_INTERVAL = 1
+INDEX_NAME = wiki
