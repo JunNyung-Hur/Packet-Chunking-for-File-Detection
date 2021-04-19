@@ -67,7 +67,7 @@ EXT ThreadsafeQueue<std::pair<const u_char*, bpf_u_int32>> PKT_QUEUE;
 EXT ThreadsafeQueue<std::pair<std::string, std::vector<std::string>>> SC_MAP_QUEUE; //Session Chunks Queue
 EXT std::map<std::string, std::vector<std::string> > SC_MAP; //Session Chunks Table
 
-EXT unsigned int spark;
+EXT unsigned int SPARK;
 EXT unsigned int PROCESSED_PKT_Q;
 EXT unsigned int PROCESSED_SC_Q;
 

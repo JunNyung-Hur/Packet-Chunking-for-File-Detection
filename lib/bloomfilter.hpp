@@ -194,13 +194,22 @@ public:
         bit_table_.resize(table_size_ / bits_per_char, static_cast<unsigned char>(0x00));
     }
 
-    bloom_filter(const std::string bf_path) {
-        this->load_bloom_filter(bf_path);
-    }
-
     bloom_filter(const bloom_filter& filter)
     {
         this->operator=(filter);
+    }
+
+    void set_parameters(const bloom_parameters& p){
+        projected_element_count_ = p.projected_element_count;
+        inserted_element_count_ = 0;
+        random_seed_ = (p.random_seed * 0xA5A5A5A5) + 1;
+        desired_false_positive_probability_ = p.false_positive_probability;
+        salt_count_ = p.optimal_parameters.number_of_hashes;
+        table_size_ = p.optimal_parameters.table_size;
+
+        generate_unique_salt();
+
+        bit_table_.resize(table_size_ / bits_per_char, static_cast<unsigned char>(0x00));
     }
 
     inline bool operator == (const bloom_filter& f) const
@@ -460,39 +469,7 @@ public:
         return salt_.size();
     }
 
-    int save(std::string bf_path) {
-        std::ofstream fout;
-        fout.open(bf_path, std::ios::out | std::ios::binary);
-
-        if (fout.is_open()) {
-            unsigned int salt_size = salt_.size();
-            fout.write(reinterpret_cast<const char*>(&salt_size), sizeof(salt_size));
-            for (auto elem = salt_.begin(); elem != salt_.end(); elem++) {
-                fout.write(reinterpret_cast<const char*>(&(*elem)), sizeof(*elem));
-            }
-            unsigned int bit_table_size = bit_table_.size();
-            fout.write(reinterpret_cast<const char*>(&bit_table_size), sizeof(bit_table_size));
-            for (auto elem = bit_table_.begin(); elem != bit_table_.end(); elem++) {
-                fout.write(reinterpret_cast<const char*>(&(*elem)), sizeof(*elem));
-            }
-            fout.write(reinterpret_cast<const char*>(&salt_count_), sizeof(salt_count_));
-            fout.write(reinterpret_cast<const char*>(&table_size_), sizeof(table_size_));
-            fout.write(reinterpret_cast<const char*>(&projected_element_count_), sizeof(projected_element_count_));
-            fout.write(reinterpret_cast<const char*>(&inserted_element_count_), sizeof(inserted_element_count_));
-            fout.write(reinterpret_cast<const char*>(&random_seed_), sizeof(random_seed_));
-            fout.write(reinterpret_cast<const char*>(&desired_false_positive_probability_), sizeof(desired_false_positive_probability_));
-            fout.close();
-            return 1;
-        }
-        else {
-            return 0;
-        }
-    }
-
-
-protected:
-
-    void load_bloom_filter(std::string bf_path) {
+    void load(std::string bf_path) {
         std::ifstream is(bf_path, std::ifstream::binary);
 
         if (is) {
@@ -527,6 +504,38 @@ protected:
             is.close();
         }
     }
+
+    int save(std::string bf_path) {
+        std::ofstream fout;
+        fout.open(bf_path, std::ios::out | std::ios::binary);
+
+        if (fout.is_open()) {
+            unsigned int salt_size = salt_.size();
+            fout.write(reinterpret_cast<const char*>(&salt_size), sizeof(salt_size));
+            for (auto elem = salt_.begin(); elem != salt_.end(); elem++) {
+                fout.write(reinterpret_cast<const char*>(&(*elem)), sizeof(*elem));
+            }
+            unsigned int bit_table_size = bit_table_.size();
+            fout.write(reinterpret_cast<const char*>(&bit_table_size), sizeof(bit_table_size));
+            for (auto elem = bit_table_.begin(); elem != bit_table_.end(); elem++) {
+                fout.write(reinterpret_cast<const char*>(&(*elem)), sizeof(*elem));
+            }
+            fout.write(reinterpret_cast<const char*>(&salt_count_), sizeof(salt_count_));
+            fout.write(reinterpret_cast<const char*>(&table_size_), sizeof(table_size_));
+            fout.write(reinterpret_cast<const char*>(&projected_element_count_), sizeof(projected_element_count_));
+            fout.write(reinterpret_cast<const char*>(&inserted_element_count_), sizeof(inserted_element_count_));
+            fout.write(reinterpret_cast<const char*>(&random_seed_), sizeof(random_seed_));
+            fout.write(reinterpret_cast<const char*>(&desired_false_positive_probability_), sizeof(desired_false_positive_probability_));
+            fout.close();
+            return 1;
+        }
+        else {
+            return 0;
+        }
+    }
+
+
+protected:
 
     inline virtual void compute_indices(const bloom_type& hash, std::size_t& bit_index, std::size_t& bit) const
     {

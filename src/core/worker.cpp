@@ -70,15 +70,15 @@ void filtering_worker(bloom_filter bf) {
 				}
 			}
 		}
-		else if (spark < 150) {
-			spark++;
+		else if (SPARK < 150) {
+			SPARK++;
 		}
 		else {
 			for (auto sc_t_it= SC_MAP.begin(); sc_t_it != SC_MAP.end(); sc_t_it++) {
 				SC_MAP_QUEUE.push(*sc_t_it);
 			}
 			SC_MAP.clear();
-			spark = 0;
+			SPARK = 0;
 		}
 	}
 }

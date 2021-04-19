@@ -17,10 +17,12 @@ void packet_capture(u_char* useless, const struct pcap_pkthdr* pkthdr, const u_c
 
 int main(int argc, char** argv)
 {
+	bloom_filter bf;
 	EXIT_FLAG = false;
-	spark = 0;
+	SPARK = 0;
 	PROCESSED_PKT_Q = 0;
 	PROCESSED_SC_Q = 0;
+
 	signal(SIGINT, sigint_handler);
 
 	if (not parse_config()){
@@ -31,7 +33,10 @@ int main(int argc, char** argv)
 		std::cerr << "Failed to initialize Elasticserach." << std::endl;
 		return -1;
 	}
-	bloom_filter bf = init_bf(INDEX_NAME, WINDOW_SIZE, BF_ERROR_RATE);
+	if (not init_bf(&bf, INDEX_NAME, WINDOW_SIZE, BF_ERROR_RATE)){
+		std::cerr << "Failed to initialize Bloom filter";
+		return -1;
+	}
 
 	std::thread filter_t(filtering_worker, bf);
 	std::thread search_t(search_worker);

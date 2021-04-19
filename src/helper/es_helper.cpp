@@ -104,7 +104,7 @@ bool es::create_index(std::string _address, std::string _indexName, unsigned int
 bool es::bulk_index(std::string _address, std::string _indexName, unsigned int _windowSize) {
 	std::string indexName = _indexName + "_" + std::to_string(_windowSize);
 	std::string bulkBody = "";
-	std::cout << "Start bulk procedure ..." << std::endl;
+	std::cout << "Start the bulk procedure ..." << std::endl;
 	int dirFilesCnt = get_number_of_files(INDEX_DIR);
 	int processedCnt = 1;
 	for (const auto& entry : std::filesystem::directory_iterator(INDEX_DIR)) {
@@ -132,7 +132,7 @@ bool es::bulk_index(std::string _address, std::string _indexName, unsigned int _
 		processedCnt++;
 	}
 	std::cout << "ok" << std::endl;
-	std::cout << "Request Bulk API ..." << std::flush;
+	std::cout << "Request Bulk API ... " << std::flush;
 	unsigned long successCnt = 0;
 	unsigned long failCnt = 0;
 	std::string reqUrl = "http://" + _address + "/_bulk";
