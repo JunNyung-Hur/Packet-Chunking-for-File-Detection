@@ -23,9 +23,12 @@ int main(int argc, char** argv)
 	PROCESSED_SC_Q = 0;
 	signal(SIGINT, sigint_handler);
 
-	parse_config();
+	if (not parse_config()){
+		std::cerr << "Failed to parse configuration file." << std::endl;
+		return -1;
+	}
 	if (not es::init_es(ES_ADDR, INDEX_NAME, WINDOW_SIZE, ES_SHARDS, ES_REPLICAS, ES_INDEX_INTERVAL)){
-		std::cout << "Failed to initialize Elasticserach." << std::endl;
+		std::cerr << "Failed to initialize Elasticserach." << std::endl;
 		return -1;
 	}
 	bloom_filter bf = init_bf(INDEX_NAME, WINDOW_SIZE, BF_ERROR_RATE);

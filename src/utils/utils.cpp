@@ -39,10 +39,14 @@ std::string get_md5(std::string _data) {
 	return md5Chunk;
 }
 
-void parse_config() {
+bool parse_config() {
 	std::filesystem::path projectRoot = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
-	std::filesystem::path configName("config.txt");
+	std::filesystem::path configName("config.ini");
 	std::filesystem::path configPath = projectRoot / configName;
+	if (not std::filesystem::exists(configPath)) {
+		std::cerr << "Couldn't find config.ini." << std::endl;
+		return false;
+	}
 	std::ifstream cFile(configPath.string());
 	if (cFile.is_open())
 	{
@@ -90,6 +94,8 @@ void parse_config() {
 		}
 	}
 	else {
-		std::cerr << "Couldn't open config file for reading.\n";
+		std::cerr << "Couldn't open config.ini for reading.\n";
+		return false;
 	}
+	return true;
 }
