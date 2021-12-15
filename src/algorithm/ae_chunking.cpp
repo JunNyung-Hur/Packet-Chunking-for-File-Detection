@@ -1,6 +1,6 @@
 #include "ae_chunking.h"
 
-std::vector<std::string> ae_chunking(const unsigned char* byteSeq, const unsigned int bytesSize, const unsigned int windowSize) {
+std::vector<std::string> ae_chunking(const unsigned char* byteSeq, const bpf_u_int32 bytesSize, const unsigned int windowSize) {
 	std::vector<std::string> chunkVec;
 	unsigned int cursorIdx = 0;
 	unsigned int baseIdx = 0;
@@ -9,7 +9,9 @@ std::vector<std::string> ae_chunking(const unsigned char* byteSeq, const unsigne
 	while (cursorIdx < bytesSize) {
 		maxValue = byteSeq[cursorIdx];
 		maxIdx = cursorIdx;
-		chunk += static_cast<char>(byteSeq[cursorIdx]);
+		if ((int)byteSeq[cursorIdx] != 0){
+			chunk += static_cast<char>(byteSeq[cursorIdx]);
+		}
 		cursorIdx++;
 		while (cursorIdx < bytesSize) {
 			if (byteSeq[cursorIdx] <= maxValue) {
@@ -24,7 +26,9 @@ std::vector<std::string> ae_chunking(const unsigned char* byteSeq, const unsigne
 				maxValue = byteSeq[cursorIdx];
 				maxIdx = cursorIdx;
 			}
-			chunk += static_cast<char>(byteSeq[cursorIdx]);
+			if ((int)byteSeq[cursorIdx] != 0){
+				chunk += static_cast<char>(byteSeq[cursorIdx]);
+			}
 			cursorIdx++;
 		}
 	}

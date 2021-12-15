@@ -1,4 +1,6 @@
 .vscode/*
 main
+main.exe
+main.exe.stackdump
 .DS_Store
 config.ini

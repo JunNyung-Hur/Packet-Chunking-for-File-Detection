@@ -5,6 +5,5 @@
 
 void filtering_worker(bloom_filter bf);
 void search_worker();
-void write_report(result_map _result);
 
 #endif

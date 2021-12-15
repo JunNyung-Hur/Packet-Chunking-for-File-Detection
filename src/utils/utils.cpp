@@ -99,3 +99,19 @@ bool parse_config() {
 	}
 	return true;
 }
+
+double calc_mean(std::vector<double> v){
+	double sum = std::accumulate(v.begin(), v.end(), 0.0);
+    double mean = sum / v.size();
+	return mean;
+}
+
+double calc_std(std::vector<double> v){
+	double mean = calc_mean(v);
+
+	std::vector<double> diff(v.size());
+    std::transform(v.begin(), v.end(), diff.begin(), [mean](double x) { return x - mean; });
+    double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+    double stdev = std::sqrt(sq_sum / v.size());
+	return stdev;
+}

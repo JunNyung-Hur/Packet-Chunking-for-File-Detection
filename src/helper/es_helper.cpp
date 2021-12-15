@@ -179,7 +179,7 @@ bool es::bulk_index(std::string _address, std::string _indexName, unsigned int _
 	return true;
 }
 
-std::string es::search(std::vector<std::string> _md5Chunks, std::string _address, std::string _indexName, unsigned int _windowSize) {
+std::string es::search(std::string _address, std::vector<std::string> _md5Chunks, std::string _indexName, unsigned int _windowSize) {
 	std::string indexName = _indexName + "_" + std::to_string(_windowSize);
 	std::string reqUrl = "http://" + _address + "/" + indexName + "/_search";
 	std::string searchBody = data::get_query_json(_md5Chunks);
@@ -206,11 +206,44 @@ std::string es::search(std::vector<std::string> _md5Chunks, std::string _address
 	return readBuffer;
 }
 
+
+std::string es::msearch(std::string _address, std::vector<std::vector<std::string>> _md5ChunksVec, std::string _indexName, unsigned int _windowSize){
+	std::string indexName = _indexName + "_" + std::to_string(_windowSize);
+	std::string reqUrl = "http://" + _address + "/" + indexName + "/_msearch";
+	std::string mSearchBody = "";
+	for(auto _md5ChunksVecIt = _md5ChunksVec.begin(); _md5ChunksVecIt != _md5ChunksVec.end(); _md5ChunksVecIt++){
+		mSearchBody += data::get_msearch_query_json(*_md5ChunksVecIt, indexName)+"\n";
+	}
+
+	CURL* curl;
+	CURLcode resCode;
+	std::string readBuffer;
+	curl = curl_easy_init();
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);
+	struct curl_slist* headers = NULL;
+	headers = curl_slist_append(headers, "Accept: application/json");
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	headers = curl_slist_append(headers, "charset: utf-8");
+
+	curl_easy_setopt(curl, CURLOPT_URL, reqUrl.c_str());
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_POST, 1);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mSearchBody.c_str());
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, mSearchBody.size());
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+	resCode = curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+
+	return readBuffer;
+}
+
+
 std::string es::data::get_query_json(std::vector<std::string> _md5Chunks) {
 	rapidjson::Document query;
 	query.SetObject();
 	rapidjson::Document::AllocatorType& allocator = query.GetAllocator();
-	query.AddMember("_source", true, allocator);
+	query.AddMember("_source", false, allocator);
 	query.AddMember("explain", true, allocator);
 	rapidjson::Value _bool(rapidjson::kObjectType);
 	rapidjson::Value _should(rapidjson::kObjectType);
@@ -232,6 +265,26 @@ std::string es::data::get_query_json(std::vector<std::string> _md5Chunks) {
 
 	return querybuf.GetString();
 }
+
+
+std::string es::data::get_msearch_query_json(std::vector<std::string> _md5Chunks, std::string _indexName) {
+	rapidjson::Document queryHeader;
+	queryHeader.SetObject();
+	rapidjson::Document::AllocatorType& allocator = queryHeader.GetAllocator();
+	queryHeader.AddMember("index", rapidjson::StringRef(_indexName.c_str()), allocator);
+	queryHeader.AddMember("search_type", rapidjson::StringRef("dfs_query_then_fetch"), allocator);
+
+	rapidjson::StringBuffer queryHeaderBuf;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(queryHeaderBuf);
+	queryHeader.Accept(writer);
+
+	std::string msearch_query_json = "";
+	msearch_query_json += queryHeaderBuf.GetString();
+	msearch_query_json += "\n";
+	msearch_query_json += es::data::get_query_json(_md5Chunks);
+	return msearch_query_json;
+}
+
 
 std::string es::data::get_bulk_json(std::string _indexName, std::vector<std::string> _md5Chunks, std::string _fileName) {
 	rapidjson::Document header;

@@ -16,15 +16,29 @@
 #include <thread>
 #include <signal.h>
 #include <iomanip>
+#include <algorithm> 
+#include <cctype>
+#include <locale>
+#include <cmath>
+#include <numeric>
 
 #include <openssl/md5.h>
 #include <curl/curl.h>
 
+#include <arpa/inet.h>
 #include <pcap.h>
-#include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+
+/* eternet header */
+typedef struct ether_header
+{
+ u_char dst_host[6];
+ u_char src_host[6];
+ u_short ether_type;
+}ether_header;
+
 
 #define RAPIDJSON_NOMEMBERITERATORCLASS
 #include <rapidjson/document.h>
@@ -33,7 +47,8 @@
 
 #include "bf_helper.h"
 #include "es_helper.h"
-#include "algorithm/ae_chunking.h"
+#include "ae_chunking.h"
+#include "network.h"
 #include "utils.h"
 #include "threadsafe_queue.hpp"
 
@@ -65,7 +80,8 @@ EXT std::string INDEX_NAME;
 
 EXT ThreadsafeQueue<std::pair<const u_char*, bpf_u_int32>> PKT_QUEUE;
 EXT ThreadsafeQueue<std::pair<std::string, std::vector<std::string>>> SC_MAP_QUEUE; //Session Chunks Queue
-EXT std::map<std::string, std::vector<std::string> > SC_MAP; //Session Chunks Table
+EXT std::map<std::string, std::vector<std::pair<std::vector<std::string>, unsigned int>>> PCTD_TABLE; // PCTD_TABLE
+EXT result_map RESULT_MAP;
 
 EXT unsigned int SPARK;
 EXT unsigned int PROCESSED_PKT_Q;

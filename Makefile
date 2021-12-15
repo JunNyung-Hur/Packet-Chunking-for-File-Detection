@@ -1,7 +1,7 @@
 CXX=g++
-CFLAGS=-std=c++17 -Wno-deprecated
-INC=-Isrc -Isrc/algorithm -Isrc/utils -Isrc/helper -Isrc/core -Ilib
-LIBS=-lcurl -lcrypto -lpcap
+CFLAGS=-std=c++17 -Wno-deprecated -D_GNU_SOURCE
+INC=-Isrc -Isrc/algorithm -Isrc/utils -Isrc/helper -Isrc/core -Ilib 
+LIBS=-lcurl -lcrypto -lwpcap
 OBJS=main.o ae_chunking.o bf_helper.o es_helper.o utils.o network.o worker.o
 
 all: main.o
