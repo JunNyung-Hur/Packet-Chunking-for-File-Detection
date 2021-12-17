@@ -76,8 +76,11 @@ bool parse_config() {
 			else if (key == "MTU") {
 				MTU = (unsigned int)std::stoi(value);
 			}
-			else if (key == "ES_ADDR") {
-				ES_ADDR = value;
+			else if (key == "ES_HOST") {
+				ES_HOST = value;
+			}
+			else if (key == "ES_PORT") {
+				ES_PORT = value;
 			}
 			else if (key == "ES_SHARDS") {
 				ES_SHARDS = std::stoi(value);

@@ -30,16 +30,14 @@ void setup_capture(std::string ifname, void (*handler)(u_char*, const struct pca
 	}
 }
 
-std::string get_session_tuple(bpf_u_int32 pkt_len, const u_char* packet){
+std::string analyze_packet(const u_char** packet, bpf_u_int32 *pkt_len){
 	struct ether_header *ep;
 	struct ip *iph; 
 	struct tcphdr *tcph;
 	unsigned short ether_type;
-	unsigned int length = pkt_len;
-
-	ep = (struct ether_header *)packet;
+	
+	ep = (struct ether_header *)*packet;
 	ether_type = ntohs(ep->ether_type);// ntohs(network to host short)
-	length -= sizeof(ep);
 	
 	std::string sip = "0";
 	std::string dip = "0";
@@ -47,16 +45,17 @@ std::string get_session_tuple(bpf_u_int32 pkt_len, const u_char* packet){
 	std::string dport = "0";
 	std::string ptc = "eth";
 	if (ether_type == 0x0800){
-		packet += sizeof(struct ether_header);
-		iph = (struct ip *)packet;
-		length -= sizeof(iph);
+		*pkt_len -= sizeof(struct ether_header);
+		*packet += sizeof(struct ether_header);
+		iph = (struct ip *)*packet;
 		sip = std::string(inet_ntoa(iph->ip_src));
 		dip = std::string(inet_ntoa(iph->ip_dst));
 		ptc = "ip";
 		if(iph->ip_p== IPPROTO_TCP) //next protocol is TCP
 		{
-			packet = packet + iph->ip_hl * 4;
-			tcph = (struct tcphdr *)packet;	       
+			*pkt_len -= (4 * iph->ip_hl);
+			*packet = *packet + (4 * iph->ip_hl);
+			tcph = (struct tcphdr *)*packet;	       
 								//TCP Header
 								//iph->ip_hl => Header length
 								//ip_hl is word so ip_hl * 4
@@ -64,6 +63,8 @@ std::string get_session_tuple(bpf_u_int32 pkt_len, const u_char* packet){
 			sport = std::to_string(ntohs(tcph->th_sport));
 			dport = std::to_string(ntohs(tcph->th_dport));
 			ptc = "tcp";
+			*pkt_len -= (4 * tcph->th_off);
+			*packet = *packet + (4 * tcph->th_off);
 		}
 	}
 	std::string session_tuple = string_format("%s_%s_%s_%s_%s",

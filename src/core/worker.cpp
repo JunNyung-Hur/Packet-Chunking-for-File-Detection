@@ -7,16 +7,13 @@ void filtering_worker(bloom_filter bf) {
 			continue;
 		}
 		std::optional<std::pair<const u_char*, bpf_u_int32>> packetItemOpt = PKT_QUEUE.pop();
-		std::pair<const u_char*, bpf_u_int32> packetItem = *packetItemOpt;
+		std::pair<const u_char*, bpf_u_int32> packetItem = *PKT_QUEUE.pop();
 		PROCESSED_PKT_Q++;
-		std::string sessionTuple = get_session_tuple(packetItem.second, packetItem.first) ;
-
-		if (sessionTuple == "0_0_0_0_eth") {
+		std::string sessionTuple = analyze_packet(&packetItem.first, &packetItem.second);
+		if (sessionTuple == "0_0_0_0_eth" || (int) packetItem.second < 0 || sessionTuple.find(ES_PORT) != std::string::npos) {
 			continue;
 		}
-
-		std::cout << string_format("\r(%d, %d), (%d, %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT_Q, SC_MAP_QUEUE.size(), PROCESSED_SC_Q) << std::flush;
-		std::pair<std::vector<std::string>, unsigned int> criticalPkt;
+		std::cout << string_format("\r(처리 대기 패킷: %d, 처리된 패킷: %d), (검색 대기 패킷: %d, 검색된 패킷: %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT_Q, SC_MAP_QUEUE.size(), PROCESSED_SC_Q) << std::flush;
 		std::vector<std::string> chunks = ae_chunking(packetItem.first, packetItem.second, WINDOW_SIZE);
 		std::vector<std::string> filteredChunks;
 		for (auto it = chunks.begin(); it != chunks.end(); it++) {
@@ -73,15 +70,14 @@ void search_worker(){
 			filteredChunksVec.push_back(scItem.second);
 		}
 
-		std::string esRes = es::msearch(ES_ADDR, filteredChunksVec, INDEX_NAME, WINDOW_SIZE);
+		std::string esRes = es::msearch(ES_HOST+":"+ES_PORT, filteredChunksVec, INDEX_NAME, WINDOW_SIZE);
 
 		rapidjson::Document resJson;
 		resJson.Parse(esRes.c_str());
 		rapidjson::Value& responses = resJson["responses"];
 		unsigned int sessionTupleIdx = 0;
-		std::cout << sessionTupleIdx << sessionTupleVec[sessionTupleIdx] <<std:: endl;
 		for (rapidjson::Value::ConstValueIterator response = responses.Begin(); response != responses.End(); response++){
-			std::string sessionTuple = sessionTupleVec[sessionTupleIdx++];
+			std::string sessionTuple = sessionTupleVec[sessionTupleIdx];
 			for (rapidjson::Value::ConstValueIterator hit = (*response)["hits"]["hits"].Begin(); hit != (*response)["hits"]["hits"].End(); hit++){
 				if (RESULT_MAP.find(sessionTuple) == RESULT_MAP.end()) {
 					hit_map new_hm;
@@ -108,7 +104,8 @@ void search_worker(){
 				}
 				// std::cout << sessionTuple << ": " << hit_id << "("  << RESULT_MAP[sessionTuple][hit_id]["hit_term_set"].size() << "/" << RESULT_MAP[sessionTuple][hit_id]["source_set"].size() << ")" << std::endl;
 			}
+			sessionTupleIdx++;
+			PROCESSED_SC_Q += sessionTupleIdx;
 		}
-		PROCESSED_SC_Q += sessionTupleIdx;
 	}
 }

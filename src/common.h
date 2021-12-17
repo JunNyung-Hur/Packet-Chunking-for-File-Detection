@@ -72,7 +72,8 @@ EXT unsigned int MTU;
 EXT unsigned int WINDOW_SIZE;
 EXT float BF_ERROR_RATE;
 
-EXT std::string ES_ADDR;
+EXT std::string ES_HOST;
+EXT std::string ES_PORT;
 EXT unsigned int ES_SHARDS;
 EXT unsigned int ES_REPLICAS;
 EXT unsigned int ES_INDEX_INTERVAL;

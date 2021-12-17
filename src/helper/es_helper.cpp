@@ -179,6 +179,30 @@ bool es::bulk_index(std::string _address, std::string _indexName, unsigned int _
 	return true;
 }
 
+
+std::string es::get_number_of_document_data(std::string _address, std::string _id, std::string _indexName, unsigned int _windowSize) {
+	std::string indexName = _indexName + "_" + std::to_string(_windowSize);
+	std::string reqUrl = "http://" + _address + "/" + indexName + "/_doc/"+_id+"?_source=number_of_data";
+	CURL* curl;
+	CURLcode resCode;
+	std::string readBuffer;
+	curl = curl_easy_init();
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);
+	struct curl_slist* headers = NULL;
+	headers = curl_slist_append(headers, "Accept: application/json");
+	headers = curl_slist_append(headers, "charset: utf-8");
+
+	curl_easy_setopt(curl, CURLOPT_URL, reqUrl.c_str());
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+	resCode = curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+
+	return readBuffer;
+}
+
+
 std::string es::search(std::string _address, std::vector<std::string> _md5Chunks, std::string _indexName, unsigned int _windowSize) {
 	std::string indexName = _indexName + "_" + std::to_string(_windowSize);
 	std::string reqUrl = "http://" + _address + "/" + indexName + "/_search";
@@ -245,6 +269,7 @@ std::string es::data::get_query_json(std::vector<std::string> _md5Chunks) {
 	rapidjson::Document::AllocatorType& allocator = query.GetAllocator();
 	query.AddMember("_source", false, allocator);
 	query.AddMember("explain", true, allocator);
+	query.AddMember("size", 10, allocator);
 	rapidjson::Value _bool(rapidjson::kObjectType);
 	rapidjson::Value _should(rapidjson::kObjectType);
 	rapidjson::Value _termArray(rapidjson::kArrayType);
@@ -302,7 +327,7 @@ std::string es::data::get_bulk_json(std::string _indexName, std::vector<std::str
 		dataArray.PushBack(rapidjson::StringRef((*md5It).c_str()), allocator);
 	}
 	body.AddMember("data", dataArray, allocator);
-
+	body.AddMember("number_of_data", _md5Chunks.size(), allocator);
 
 	rapidjson::StringBuffer headerBuf;
 	rapidjson::Writer<rapidjson::StringBuffer> headerWriter(headerBuf);
@@ -340,6 +365,9 @@ std::string es::data::get_mapping_json(unsigned int _shards, unsigned int _repli
 	data.AddMember("type", "text", allocator);
 	data.AddMember("similarity", "scripted_one", allocator);
 	properties.AddMember("data", data, allocator);
+	rapidjson::Value numberOfData(rapidjson::kObjectType);
+	numberOfData.AddMember("type", "integer", allocator);
+	properties.AddMember("number_of_data", numberOfData, allocator);
 	mappings.AddMember("properties", properties, allocator);
 
 	mapping_json.AddMember("settings", settings, allocator);

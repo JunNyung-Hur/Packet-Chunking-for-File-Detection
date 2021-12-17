@@ -8,13 +8,14 @@ void sigint_handler(int s) {
 	EXIT_FLAG = true;
 }
 
-void packet_capture(u_char* useless, const struct pcap_pkthdr* pkthdr, const u_char* packet) {
+void packet_handler(u_char* useless, const struct pcap_pkthdr* pkthdr, const u_char* packet) {
 	if (pkthdr->len) {
-		PKT_QUEUE.push(std::make_pair(packet, pkthdr->caplen));
+		PKT_QUEUE.push(std::make_pair(packet, pkthdr->len));
 	}
 }
 
 void write_report(result_map _resultMap){
+	std::cout << "Writing report..." << std::endl;
 	rapidjson::Document resultDoc;
 	resultDoc.SetObject();
 	rapidjson::Document::AllocatorType& allocator = resultDoc.GetAllocator();
@@ -24,10 +25,13 @@ void write_report(result_map _resultMap){
 		for (auto hitMapIt = (*resultMapIt).second.begin(); hitMapIt != (*resultMapIt).second.end(); hitMapIt++) {
 			std::string hitId = (*hitMapIt).first;
 			set_map setMap = (*hitMapIt).second;
+			std::string esRes = es::get_number_of_document_data(ES_HOST+":"+ES_PORT, hitId, INDEX_NAME, WINDOW_SIZE);
+			rapidjson::Document resJson;
+			resJson.Parse(esRes.c_str());
+			unsigned int sourceTermsSize = resJson["_source"]["number_of_data"].GetUint();
+			double score = (double) setMap["hit_term_set"].size() / (double) sourceTermsSize;
 			rapidjson::Value _hitObject(rapidjson::kArrayType);;
 			rapidjson::Value key(hitId.c_str(), allocator);
-			// double score = double(setMap["hit_term_set"].size()) / double(setMap["source_set"].size());
-			double score = double(setMap["hit_term_set"].size());
 			_hitObject.PushBack(key, allocator);
 			_hitObject.PushBack(score, allocator);
 			_hitList.PushBack(_hitObject, allocator);
@@ -65,7 +69,7 @@ int main(int argc, char** argv)
 		std::cerr << "Failed to parse configuration file." << std::endl;
 		return -1;
 	}
-	if (not es::init_es(ES_ADDR, INDEX_NAME, WINDOW_SIZE, ES_SHARDS, ES_REPLICAS, ES_INDEX_INTERVAL)){
+	if (not es::init_es(ES_HOST+":"+ES_PORT, INDEX_NAME, WINDOW_SIZE, ES_SHARDS, ES_REPLICAS, ES_INDEX_INTERVAL)){
 		std::cerr << "Failed to initialize Elasticserach." << std::endl;
 		return -1;
 	}
@@ -76,7 +80,7 @@ int main(int argc, char** argv)
 
 	std::thread filter_t(filtering_worker, bf);
 	std::thread search_t(search_worker);
-	setup_capture(std::string(argv[1]), packet_capture);
+	setup_capture(std::string(argv[1]), packet_handler);
 
 	filter_t.join();
 	search_t.join();
