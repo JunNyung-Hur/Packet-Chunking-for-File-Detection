@@ -10,6 +10,7 @@ void sigint_handler(int s) {
 
 void write_report(){
 	std::cout << "Writing report..." << std::endl;
+	std::map<std::string, unsigned int> fileSizeMap;
 	rapidjson::Document resultDoc;
 	resultDoc.SetObject();
 	rapidjson::Document::AllocatorType& allocator = resultDoc.GetAllocator();
@@ -19,11 +20,16 @@ void write_report(){
 		for (auto hitMapIt = (*resultMapIt).second.begin(); hitMapIt != (*resultMapIt).second.end(); hitMapIt++) {
 			std::string hitId = (*hitMapIt).first;
 			set_map setMap = (*hitMapIt).second;
-			std::string esRes = es::get_number_of_document_data(ES_HOST+":"+ES_PORT, hitId, INDEX_NAME, WINDOW_SIZE);
-			rapidjson::Document resJson;
-			resJson.Parse(esRes.c_str());
-			unsigned int sourceTermsSize = resJson["_source"]["number_of_data"].GetUint();
-			double score = (double) setMap["hit_term_set"].size() / (double) sourceTermsSize;
+			if (fileSizeMap.find(hitId) == fileSizeMap.end()){
+				std::string esRes = es::get_number_of_document_data(ES_HOST+":"+ES_PORT, hitId, INDEX_NAME, WINDOW_SIZE);
+				rapidjson::Document resJson;
+				if (resJson.Parse(esRes.c_str()).HasParseError()){
+					continue;
+				}
+				resJson.Parse(esRes.c_str());
+				fileSizeMap.insert(std::pair(hitId, resJson["_source"]["number_of_data"].GetUint()));
+			}
+			double score = (double) setMap["hit_term_set"].size() / (double) fileSizeMap[hitId];
 			rapidjson::Value _hitObject(rapidjson::kArrayType);;
 			rapidjson::Value key(hitId.c_str(), allocator);
 			_hitObject.PushBack(key, allocator);

@@ -9,7 +9,6 @@ void filtering_worker(bloom_filter bf) {
 		std::pair<unsigned char*, bpf_u_int32> pktPair = *PKT_QUEUE.pop();
 		PROCESSED_PKT_Q++;
 		std::string sessionTuple = analyze_packet(pktPair.first, pktPair.second);
-		std::cout << sessionTuple << std::endl;
 		if (sessionTuple == "0_0_0_0_eth" || (int) pktPair.second < 0 || sessionTuple.find(ES_PORT) != std::string::npos) {
 			delete[] pktPair.first;
 			continue;
