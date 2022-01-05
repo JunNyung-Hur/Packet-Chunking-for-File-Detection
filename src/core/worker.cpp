@@ -6,15 +6,16 @@ void filtering_worker(bloom_filter bf) {
 		if (!PKT_QUEUE.size()) {
 			continue;
 		}
-		std::optional<std::pair<const u_char*, bpf_u_int32>> packetItemOpt = PKT_QUEUE.pop();
-		std::pair<const u_char*, bpf_u_int32> packetItem = *PKT_QUEUE.pop();
+		std::pair<unsigned char*, bpf_u_int32> pktPair = *PKT_QUEUE.pop();
 		PROCESSED_PKT_Q++;
-		std::string sessionTuple = analyze_packet(&packetItem.first, &packetItem.second);
-		if (sessionTuple == "0_0_0_0_eth" || (int) packetItem.second < 0 || sessionTuple.find(ES_PORT) != std::string::npos) {
+		std::string sessionTuple = analyze_packet(pktPair.first, pktPair.second);
+		std::cout << sessionTuple << std::endl;
+		if (sessionTuple == "0_0_0_0_eth" || (int) pktPair.second < 0 || sessionTuple.find(ES_PORT) != std::string::npos) {
+			delete[] pktPair.first;
 			continue;
 		}
 		std::cout << string_format("\r(처리 대기 패킷: %d, 처리된 패킷: %d), (검색 대기 패킷: %d, 검색된 패킷: %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT_Q, SC_MAP_QUEUE.size(), PROCESSED_SC_Q) << std::flush;
-		std::vector<std::string> chunks = ae_chunking(packetItem.first, packetItem.second, WINDOW_SIZE);
+		std::vector<std::string> chunks = ae_chunking(pktPair.first, pktPair.second, WINDOW_SIZE);
 		std::vector<std::string> filteredChunks;
 		for (auto it = chunks.begin(); it != chunks.end(); it++) {
 			std::string trimedChunks = trim(*it);
@@ -28,29 +29,11 @@ void filtering_worker(bloom_filter bf) {
 		}
 		if (filteredChunks.size()) {
 			double criticalRatio = (double)filteredChunks.size()/(double)chunks.size();
-			if (criticalRatio < 0.3){
-				continue;
+			if (criticalRatio >= 0.3){
+				SC_MAP_QUEUE.push(std::make_pair(sessionTuple, filteredChunks));
 			}
-			SC_MAP_QUEUE.push(std::make_pair(sessionTuple, filteredChunks));
-			// if (PCTD_TABLE.find(session_tuple) == PCTD_TABLE.end()) {
-			// 	std::pair<std::vector<double>, std::vector<std::string>> newCriticalPktPair;
-			// 	PCTD_TABLE.insert(std::make_pair(session_tuple, newCriticalPktPair));
-			// }
-			// PCTD_TABLE[session_tuple].first.push_back(criticalRatio);
-			// for (auto fc_it=filteredChunks.begin(); fc_it!=filteredChunks.end(); fc_it++){
-				// PCTD_TABLE[session_tuple].second.push_back(*fc_it);
-			// }
-
-			// if (PCTD_TABLE[session_tuple].first.size() > 1){
-			// 	std::cout << session_tuple << "-" << PCTD_TABLE[session_tuple].first.size() << std::endl;
-			// 	double standardError = calc_std(PCTD_TABLE[session_tuple].first) / std::sqrt(PCTD_TABLE[session_tuple].first.size());
-			// 	std::cout << "standard error: "  << standardError << std::endl;
-			// 	if (standardError <= 0.02){
-			// 		SC_MAP_QUEUE.push(std::make_pair(session_tuple, PCTD_TABLE[session_tuple].second));
-			// 		PCTD_TABLE.erase(session_tuple);
-			// 	}
-			// }
 		}
+		delete[] pktPair.first;
 	}
 }
 
@@ -105,7 +88,7 @@ void search_worker(){
 				// std::cout << sessionTuple << ": " << hit_id << "("  << RESULT_MAP[sessionTuple][hit_id]["hit_term_set"].size() << "/" << RESULT_MAP[sessionTuple][hit_id]["source_set"].size() << ")" << std::endl;
 			}
 			sessionTupleIdx++;
-			PROCESSED_SC_Q += sessionTupleIdx;
 		}
+		PROCESSED_SC_Q += sessionTupleIdx;
 	}
 }

@@ -8,18 +8,12 @@ void sigint_handler(int s) {
 	EXIT_FLAG = true;
 }
 
-void packet_handler(u_char* useless, const struct pcap_pkthdr* pkthdr, const u_char* packet) {
-	if (pkthdr->len) {
-		PKT_QUEUE.push(std::make_pair(packet, pkthdr->len));
-	}
-}
-
-void write_report(result_map _resultMap){
+void write_report(){
 	std::cout << "Writing report..." << std::endl;
 	rapidjson::Document resultDoc;
 	resultDoc.SetObject();
 	rapidjson::Document::AllocatorType& allocator = resultDoc.GetAllocator();
-	for (auto resultMapIt = _resultMap.begin(); resultMapIt != _resultMap.end(); resultMapIt++) {
+	for (auto resultMapIt = RESULT_MAP.begin(); resultMapIt != RESULT_MAP.end(); resultMapIt++) {
 		std::string sessionTuple = (*resultMapIt).first;
 		rapidjson::Value _hitList(rapidjson::kArrayType);
 		for (auto hitMapIt = (*resultMapIt).second.begin(); hitMapIt != (*resultMapIt).second.end(); hitMapIt++) {
@@ -47,7 +41,7 @@ void write_report(result_map _resultMap){
 	std::string resultJson (buf.GetString(), buf.GetSize());
 
 	std::filesystem::path reportDir(REPORT_DIR);
-	std::filesystem::path reportName(INDEX_NAME + string_format("_%d_%.0e.json", WINDOW_SIZE, BF_ERROR_RATE));
+	std::filesystem::path reportName(INDEX_NAME + string_format("_%d.json", WINDOW_SIZE));
 	std::filesystem::path reportPath = reportDir / reportName;
 	std::ofstream of (reportPath);
 	of << resultJson;
@@ -62,7 +56,8 @@ int main(int argc, char** argv)
 	SPARK = 0;
 	PROCESSED_PKT_Q = 0;
 	PROCESSED_SC_Q = 0;
-
+	bool offlineMode = false;
+	std::string inputStr = "";
 	signal(SIGINT, sigint_handler);
 
 	if (not parse_config()){
@@ -77,13 +72,19 @@ int main(int argc, char** argv)
 		std::cerr << "Failed to initialize Bloom filter";
 		return -1;
 	}
-
+	for (unsigned int i = 1; i < argc; i ++){
+		if (std::string(argv[i]) == "-p"){
+			offlineMode = true;
+		} else {
+			inputStr = std::string(argv[i]);
+		}
+	}
 	std::thread filter_t(filtering_worker, bf);
 	std::thread search_t(search_worker);
-	setup_capture(std::string(argv[1]), packet_handler);
+	setup_capture(inputStr, offlineMode);
 
 	filter_t.join();
 	search_t.join();
-	write_report(RESULT_MAP);
+	write_report();
 	return 0;
 }

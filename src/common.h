@@ -79,7 +79,7 @@ EXT unsigned int ES_REPLICAS;
 EXT unsigned int ES_INDEX_INTERVAL;
 EXT std::string INDEX_NAME;
 
-EXT ThreadsafeQueue<std::pair<const u_char*, bpf_u_int32>> PKT_QUEUE;
+EXT ThreadsafeQueue<std::pair<unsigned char*, bpf_u_int32>> PKT_QUEUE;
 EXT ThreadsafeQueue<std::pair<std::string, std::vector<std::string>>> SC_MAP_QUEUE; //Session Chunks Queue
 EXT std::map<std::string, std::vector<std::pair<std::vector<std::string>, unsigned int>>> PCTD_TABLE; // PCTD_TABLE
 EXT result_map RESULT_MAP;
