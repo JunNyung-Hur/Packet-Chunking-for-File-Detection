@@ -2,9 +2,12 @@
 
 void filtering_worker(bloom_filter bf) {
 	while (true){
-		if (EXIT_FLAG) break;
 		if (!PKT_QUEUE.size()) {
-			continue;
+			if (EXIT_FLAG){
+				break;
+			} else {
+				continue;
+			}
 		}
 		std::pair<unsigned char*, bpf_u_int32> pktPair = *PKT_QUEUE.pop();
 		PROCESSED_PKT_Q++;
@@ -28,7 +31,7 @@ void filtering_worker(bloom_filter bf) {
 		}
 		if (filteredChunks.size()) {
 			double criticalRatio = (double)filteredChunks.size()/(double)chunks.size();
-			if (criticalRatio >= 0.3){
+			if (criticalRatio >= 0.5){
 				SC_MAP_QUEUE.push(std::make_pair(sessionTuple, filteredChunks));
 			}
 		}

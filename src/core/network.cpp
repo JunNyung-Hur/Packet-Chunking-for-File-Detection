@@ -4,14 +4,24 @@ void setup_capture(std::string inputArg, bool offlineMode) {
 	pcap_if_t *devs, *dev;
 	pcap_t* pd;
 	char errbuf[PCAP_ERRBUF_SIZE];
-	
 	if (offlineMode){
 		pd = pcap_open_offline(inputArg.c_str(), errbuf);
 		if (pd == NULL) {
 			printf("Could not open pcap file %s: %s\n", inputArg.c_str(), errbuf);
 			exit(-1);
 		}
-		int status = pcap_dispatch(pd, -1, packet_handler, NULL);
+		// int status = pcap_dispatch(pd, -1, packet_handler, NULL);
+		struct pcap_pkthdr* hdr;
+		const u_char* pkt;
+		int res;
+		while((res = pcap_next_ex(pd, &hdr, &pkt)) >= 0){
+			if(res == 0) {
+				// Timeout elapsed
+				continue;
+			}
+			packet_handler(NULL, hdr, pkt);
+		}
+		EXIT_FLAG = true;
 	}
 	else {
 		if (pcap_findalldevs(&devs, errbuf) == -1){
