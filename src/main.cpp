@@ -59,6 +59,7 @@ int main(int argc, char** argv)
 {
 	bloom_filter bf;
 	EXIT_FLAG = false;
+	END_FILTERING = false;
 	SPARK = 0;
 	PROCESSED_PKT_Q = 0;
 	PROCESSED_SC_Q = 0;

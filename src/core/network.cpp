@@ -53,7 +53,7 @@ void packet_handler(u_char* useless, const struct pcap_pkthdr* _hdr, const u_cha
 	if (_hdr->len) {
 		unsigned char* pkt = new unsigned char[_hdr->len];
 		memcpy(pkt, _pkt, _hdr->len);
-		PKT_QUEUE.push(std::make_pair(pkt, _hdr->len));
+		PKT_QUEUE.push(std::make_pair(std::make_pair(pkt, _hdr->len), std::time(0)));
 	}
 }
 

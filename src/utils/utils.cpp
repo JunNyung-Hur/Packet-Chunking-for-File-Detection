@@ -64,6 +64,9 @@ bool parse_config() {
 			else if (key == "BLOOMFILTER_ERROR_RATE") {
 				BF_ERROR_RATE = std::stof(value);
 			}
+			else if (key == "CRITICAL_RATIO"){
+				CRITICAL_RATIO = std::stof(value);
+			}
 			else if (key == "INDEX_DIR") {
 				INDEX_DIR = value;
 			}
