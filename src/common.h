@@ -84,9 +84,10 @@ EXT ThreadsafeQueue<std::pair<std::pair<unsigned char*, bpf_u_int32>, time_t>> P
 EXT ThreadsafeQueue<std::pair<std::pair<std::string, std::vector<std::string>>, time_t>> SC_MAP_QUEUE; //Session Chunks Queue
 EXT result_map RESULT_MAP;
 
-EXT unsigned int SPARK;
 EXT unsigned int PROCESSED_PKT_Q;
 EXT unsigned int PROCESSED_SC_Q;
+
+EXT unsigned int MAX_PROCESSING_TIME;
 
 EXT bool EXIT_FLAG;
 EXT bool END_FILTERING;

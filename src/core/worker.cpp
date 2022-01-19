@@ -43,7 +43,6 @@ void filtering_worker(bloom_filter bf) {
 }
 
 void search_worker(){
-	unsigned int maxProcessingTime = 0;
 	while (true) {
 		if (not SC_MAP_QUEUE.size()) {
 			if (END_FILTERING) break;
@@ -84,26 +83,19 @@ void search_worker(){
 				}
 				if (RESULT_MAP[sessionTuple].find(hitId) == RESULT_MAP[sessionTuple].end()) {
 					set_map new_sm;
-					// std::set<std::string> source_set;
-					// for (const auto& elem : (*hit)["_source"]["data"].GetArray()) {
-					// 	source_set.insert(elem.GetString());
-					// }
-					// new_sm.insert(std::pair("source_set", source_set));
 					new_sm.insert(std::pair("hit_term_set", hit_term_set));
 					RESULT_MAP[sessionTuple].insert(std::pair(hitId, new_sm));
 				}
 				else {
 					RESULT_MAP[sessionTuple][hitId]["hit_term_set"].insert(hit_term_set.begin(), hit_term_set.end());
 				}
-				// std::cout << sessionTuple << ": " << hit_id << "("  << RESULT_MAP[sessionTuple][hit_id]["hit_term_set"].size() << "/" << RESULT_MAP[sessionTuple][hit_id]["source_set"].size() << ")" << std::endl;
 			}
 			sessionTupleIdx++;
 			unsigned int processingTime = std::time(0) - pktTime;
-			if (processingTime > maxProcessingTime){
-				maxProcessingTime = processingTime;
+			if (processingTime > MAX_PROCESSING_TIME){
+				MAX_PROCESSING_TIME = processingTime;
 			}
 		}
 		PROCESSED_SC_Q += sessionTupleIdx;
 	}
-	std::cout << "max processing time: " << maxProcessingTime << std::endl;
 }

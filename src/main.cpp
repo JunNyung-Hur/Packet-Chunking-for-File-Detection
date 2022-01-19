@@ -39,6 +39,7 @@ void write_report(){
 		rapidjson::Value sessionKey(sessionTuple.c_str(), allocator);
 		resultDoc.AddMember(sessionKey, _hitList, allocator);
 	}
+	resultDoc.AddMember("max_processing_time", MAX_PROCESSING_TIME, allocator);
 
 	typedef rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>> StringBuffer;
 	StringBuffer buf (&allocator);
@@ -60,7 +61,7 @@ int main(int argc, char** argv)
 	bloom_filter bf;
 	EXIT_FLAG = false;
 	END_FILTERING = false;
-	SPARK = 0;
+	MAX_PROCESSING_TIME = 0;
 	PROCESSED_PKT_Q = 0;
 	PROCESSED_SC_Q = 0;
 	bool offlineMode = false;
