@@ -9,9 +9,8 @@ void filtering_worker(bloom_filter bf) {
 				continue;
 			}
 		}
-		std::optional<std::pair<std::pair<unsigned char*, bpf_u_int32>, time_t>> pktItemOpt = PKT_QUEUE.pop();
-		std::pair<unsigned char*, bpf_u_int32> pktPair = (*pktItemOpt).first;
-		time_t pktTime = (*pktItemOpt).second;
+		std::optional<std::pair<unsigned char*, bpf_u_int32>> pktItemOpt = PKT_QUEUE.pop();
+		std::pair<unsigned char*, bpf_u_int32> pktPair = *pktItemOpt;
 		PROCESSED_PKT_Q++;
 		std::string sessionTuple = analyze_packet(pktPair.first, pktPair.second);
 		if (sessionTuple == "0_0_0_0_eth" || (int) pktPair.second < 0 || sessionTuple.find(ES_PORT) != std::string::npos) {
@@ -34,7 +33,8 @@ void filtering_worker(bloom_filter bf) {
 		if (filteredChunks.size()) {
 			double criticalRatio = (double)filteredChunks.size()/(double)chunks.size();
 			if (criticalRatio >= CRITICAL_RATIO){
-				SC_MAP_QUEUE.push(std::make_pair(std::make_pair(sessionTuple, filteredChunks), pktTime));
+				CRITICAL_PKT++;
+				SC_MAP_QUEUE.push(std::make_pair(sessionTuple, filteredChunks));
 			}
 		}
 		delete[] pktPair.first;
@@ -50,15 +50,12 @@ void search_worker(){
 		}
 		std::vector<std::string> sessionTupleVec;
 		std::vector<std::vector<std::string>> filteredChunksVec;
-		std::vector<time_t> pktTimeVec;
 		unsigned int batchSize = std::min(SC_MAP_QUEUE.size(), (unsigned long) 1000);
 		for (unsigned int i = 0; i < batchSize; i++){
-			std::optional<std::pair<std::pair<std::string, std::vector<std::string>>, time_t>> scItemOpt = SC_MAP_QUEUE.pop();
-			std::pair<std::string, std::vector<std::string>> scItem = (*scItemOpt).first;
-			time_t pktTime = (*scItemOpt).second;
+			std::optional<std::pair<std::string, std::vector<std::string>>> scItemOpt = SC_MAP_QUEUE.pop();
+			std::pair<std::string, std::vector<std::string>> scItem = *scItemOpt;
 			sessionTupleVec.push_back(scItem.first);
 			filteredChunksVec.push_back(scItem.second);
-			pktTimeVec.push_back(pktTime);
 		}
 
 		std::string esRes = es::msearch(ES_HOST+":"+ES_PORT, filteredChunksVec, INDEX_NAME, WINDOW_SIZE);
@@ -69,7 +66,6 @@ void search_worker(){
 		unsigned int sessionTupleIdx = 0;
 		for (rapidjson::Value::ConstValueIterator response = responses.Begin(); response != responses.End(); response++){
 			std::string sessionTuple = sessionTupleVec[sessionTupleIdx];
-			time_t pktTime = pktTimeVec[sessionTupleIdx];
 			for (rapidjson::Value::ConstValueIterator hit = (*response)["hits"]["hits"].Begin(); hit != (*response)["hits"]["hits"].End(); hit++){
 				if (RESULT_MAP.find(sessionTuple) == RESULT_MAP.end()) {
 					hit_map new_hm;
@@ -90,11 +86,7 @@ void search_worker(){
 					RESULT_MAP[sessionTuple][hitId]["hit_term_set"].insert(hit_term_set.begin(), hit_term_set.end());
 				}
 			}
-			sessionTupleIdx++;
-			unsigned int processingTime = std::time(0) - pktTime;
-			if (processingTime > MAX_PROCESSING_TIME){
-				MAX_PROCESSING_TIME = processingTime;
-			}
+			sessionTupleIdx ++;
 		}
 		PROCESSED_SC_Q += sessionTupleIdx;
 	}

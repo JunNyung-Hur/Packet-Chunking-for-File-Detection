@@ -39,8 +39,9 @@ std::string get_md5(std::string _data) {
 	return md5Chunk;
 }
 
-bool parse_config() {
-	std::filesystem::path projectRoot = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+bool parse_config(char* arg) {
+	std::filesystem::path mainPath(arg);
+	std::filesystem::path projectRoot(mainPath.parent_path());
 	std::filesystem::path configName("config.ini");
 	std::filesystem::path configPath = projectRoot / configName;
 	if (not std::filesystem::exists(configPath)) {

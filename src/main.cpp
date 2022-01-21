@@ -39,7 +39,8 @@ void write_report(){
 		rapidjson::Value sessionKey(sessionTuple.c_str(), allocator);
 		resultDoc.AddMember(sessionKey, _hitList, allocator);
 	}
-	resultDoc.AddMember("max_processing_time", MAX_PROCESSING_TIME, allocator);
+	resultDoc.AddMember("critical_pkt", CRITICAL_PKT, allocator);
+	resultDoc.AddMember("elapsed_time", ELAPSED_TIME, allocator);
 
 	typedef rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>> StringBuffer;
 	StringBuffer buf (&allocator);
@@ -61,14 +62,15 @@ int main(int argc, char** argv)
 	bloom_filter bf;
 	EXIT_FLAG = false;
 	END_FILTERING = false;
-	MAX_PROCESSING_TIME = 0;
+	CRITICAL_PKT = 0;
 	PROCESSED_PKT_Q = 0;
 	PROCESSED_SC_Q = 0;
+	ELAPSED_TIME = 0.0;
 	bool offlineMode = false;
 	std::string inputStr = "";
 	signal(SIGINT, sigint_handler);
 
-	if (not parse_config()){
+	if (not parse_config(argv[0])){
 		std::cerr << "Failed to parse configuration file." << std::endl;
 		return -1;
 	}
@@ -90,9 +92,10 @@ int main(int argc, char** argv)
 	std::thread filter_t(filtering_worker, bf);
 	std::thread search_t(search_worker);
 	setup_capture(inputStr, offlineMode);
-
+	double clock_start = std::clock();
 	filter_t.join();
 	search_t.join();
+	ELAPSED_TIME += (std::clock() - clock_start) / CLOCKS_PER_SEC;
 	write_report();
 	return 0;
 }
