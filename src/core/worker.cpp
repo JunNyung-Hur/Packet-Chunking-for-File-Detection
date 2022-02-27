@@ -1,5 +1,21 @@
 #include "worker.h"
 
+void monitoring_worker(){
+	unsigned int remaining_search_tasks = 0;
+	while (true){
+		if (EXIT_FLAG && END_FILTERING && END_SEARCHING){
+			break;
+		}
+		remaining_search_tasks = 0;
+		for (auto it=CRITICAL_CHUNK_TABLE.begin(); it!=CRITICAL_CHUNK_TABLE.end(); it++){
+			if ((*it).second.size() >= THETA_H){
+				remaining_search_tasks++;
+			}
+		}
+		std::cout << string_format("\r(Packets in queue: %d, Processed packets: %d), (Remaining search tasks: %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT, remaining_search_tasks) << std::flush;
+	}
+}
+
 void filtering_worker(bloom_filter bf) {
 	while (true){
 		if (!PKT_QUEUE.size()) {
@@ -11,13 +27,12 @@ void filtering_worker(bloom_filter bf) {
 		}
 		std::optional<std::pair<unsigned char*, bpf_u_int32>> pktItemOpt = PKT_QUEUE.pop();
 		std::pair<unsigned char*, bpf_u_int32> pktPair = *pktItemOpt;
-		PROCESSED_PKT_Q++;
+		PROCESSED_PKT++;
 		std::string sessionTuple = analyze_packet(pktPair.first, pktPair.second);
 		if (sessionTuple == "0_0_0_0_eth" || (int) pktPair.second < 0 || sessionTuple.find(ES_PORT) != std::string::npos) {
 			delete[] pktPair.first;
 			continue;
 		}
-		std::cout << string_format("\r(처리 대기 패킷: %d, 처리된 패킷: %d), (검색 대기 세션: %d, 검색된 세션: %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT_Q, CRITICAL_CHUNK_TABLE.size(), PROCESSED_SC_Q) << std::flush;
 		std::vector<std::string> chunks = ae_chunking(pktPair.first, pktPair.second, WINDOW_SIZE);
 		std::vector<std::string> filteredChunks;
 		for (auto it = chunks.begin(); it != chunks.end(); it++) {
@@ -87,7 +102,6 @@ void search_worker(){
 			}
 			of.close();
 			filteredChunksVec.clear();
-			PROCESSED_SC_Q ++;
 		}
 		if (END_FILTERING) {
 			bool isRemain = false;
@@ -105,4 +119,5 @@ void search_worker(){
 			}
 		}
 	}
+	END_SEARCHING = true;
 }

@@ -81,12 +81,13 @@ EXT unsigned int ES_REPLICAS;
 EXT unsigned int ES_INDEX_INTERVAL;
 EXT std::string INDEX_NAME;
 
+EXT pcap_t* PD;
 EXT ThreadsafeQueue<std::pair<unsigned char*, bpf_u_int32>> PKT_QUEUE;
 EXT std::map<std::string, ThreadsafeQueue<std::string>> CRITICAL_CHUNK_TABLE;
 
-EXT unsigned int PROCESSED_PKT_Q;
-EXT unsigned int PROCESSED_SC_Q;
+EXT unsigned int PROCESSED_PKT;
 
 EXT bool EXIT_FLAG;
 EXT bool END_FILTERING;
+EXT bool END_SEARCHING;
 #endif 

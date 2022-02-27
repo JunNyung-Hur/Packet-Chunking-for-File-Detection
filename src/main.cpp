@@ -2,9 +2,10 @@
 #include "common.h"
 #include "worker.h"
 
-
 void sigint_handler(int s) {
 	std::cout << "SIGINT detected." << std::endl;
+	pcap_breakloop(PD);
+	pcap_close(PD);
 	EXIT_FLAG = true;
 }
 
@@ -13,11 +14,10 @@ int main(int argc, char** argv)
 	bloom_filter bf;
 	EXIT_FLAG = false;
 	END_FILTERING = false;
-	PROCESSED_PKT_Q = 0;
-	PROCESSED_SC_Q = 0;
+	END_SEARCHING = false;
+	PROCESSED_PKT = 0;
 	bool offlineMode = false;
 	std::string inputStr = "";
-	signal(SIGINT, sigint_handler);
 
 	if (not parse_config(argv[0])){
 		std::cerr << "Failed to parse configuration file." << std::endl;
@@ -40,10 +40,14 @@ int main(int argc, char** argv)
 	}
 	std::thread filter_t(filtering_worker, bf);
 	std::thread search_t(search_worker);
-	setup_capture(inputStr, offlineMode);
-	// double clock_start = std::clock();
+	std::thread monitor_t(monitoring_worker);
+	std::thread network_t(setup_capture, inputStr, offlineMode);
+	signal(SIGINT, sigint_handler);
+	
+	network_t.join();
 	filter_t.join();
 	search_t.join();
+	monitor_t.join();
 	for (auto it = CRITICAL_CHUNK_TABLE.begin(); it!= CRITICAL_CHUNK_TABLE.end(); it++){
 		while((*it).second.size()) (*it).second.pop();
 	}

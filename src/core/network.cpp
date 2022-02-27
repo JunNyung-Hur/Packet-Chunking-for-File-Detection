@@ -2,11 +2,10 @@
 
 void setup_capture(std::string inputArg, bool offlineMode) {
 	pcap_if_t *devs, *dev;
-	pcap_t* pd;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	if (offlineMode){
-		pd = pcap_open_offline(inputArg.c_str(), errbuf);
-		if (pd == NULL) {
+		PD = pcap_open_offline(inputArg.c_str(), errbuf);
+		if (PD == NULL) {
 			printf("Could not open pcap file %s: %s\n", inputArg.c_str(), errbuf);
 			exit(-1);
 		}
@@ -14,7 +13,7 @@ void setup_capture(std::string inputArg, bool offlineMode) {
 		struct pcap_pkthdr* hdr;
 		const u_char* pkt;
 		int res;
-		while((res = pcap_next_ex(pd, &hdr, &pkt)) >= 0){
+		while((res = pcap_next_ex(PD, &hdr, &pkt)) >= 0){
 			if(res == 0) {
 				// Timeout elapsed
 				continue;
@@ -38,14 +37,12 @@ void setup_capture(std::string inputArg, bool offlineMode) {
 			exit(-1);
 		}
 
-		pd = pcap_open_live(dev->name, MTU, 0, 100, errbuf);
-		if (pd == NULL) {
+		PD = pcap_open_live(dev->name, MTU, 0, 100, errbuf);
+		if (PD == NULL) {
 			perror(errbuf);
 			exit(-1);
 		}
-		while (!EXIT_FLAG){
-			int status = pcap_dispatch(pd, -1, packet_handler, NULL);
-		}
+		int status = pcap_loop(PD, -1, packet_handler, NULL);
 	}
 }
 

@@ -3,6 +3,7 @@
 
 #include "common.h"
 
+void monitoring_worker();
 void filtering_worker(bloom_filter bf);
 void search_worker();
 
