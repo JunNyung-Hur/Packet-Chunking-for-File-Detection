@@ -8,64 +8,13 @@ void sigint_handler(int s) {
 	EXIT_FLAG = true;
 }
 
-void write_report(){
-	std::cout << "Writing report..." << std::endl;
-	std::map<std::string, unsigned int> fileSizeMap;
-	rapidjson::Document resultDoc;
-	resultDoc.SetObject();
-	rapidjson::Document::AllocatorType& allocator = resultDoc.GetAllocator();
-	for (auto resultMapIt = RESULT_MAP.begin(); resultMapIt != RESULT_MAP.end(); resultMapIt++) {
-		std::string sessionTuple = (*resultMapIt).first;
-		rapidjson::Value _hitList(rapidjson::kArrayType);
-		for (auto hitMapIt = (*resultMapIt).second.begin(); hitMapIt != (*resultMapIt).second.end(); hitMapIt++) {
-			std::string hitId = (*hitMapIt).first;
-			set_map setMap = (*hitMapIt).second;
-			if (fileSizeMap.find(hitId) == fileSizeMap.end()){
-				std::string esRes = es::get_number_of_document_data(ES_HOST+":"+ES_PORT, hitId, INDEX_NAME, WINDOW_SIZE);
-				rapidjson::Document resJson;
-				if (resJson.Parse(esRes.c_str()).HasParseError()){
-					continue;
-				}
-				resJson.Parse(esRes.c_str());
-				fileSizeMap.insert(std::pair(hitId, resJson["_source"]["number_of_data"].GetUint()));
-			}
-			double score = (double) setMap["hit_term_set"].size() / (double) fileSizeMap[hitId];
-			rapidjson::Value _hitObject(rapidjson::kArrayType);;
-			rapidjson::Value key(hitId.c_str(), allocator);
-			_hitObject.PushBack(key, allocator);
-			_hitObject.PushBack(score, allocator);
-			_hitList.PushBack(_hitObject, allocator);
-		}
-		rapidjson::Value sessionKey(sessionTuple.c_str(), allocator);
-		resultDoc.AddMember(sessionKey, _hitList, allocator);
-	}
-	resultDoc.AddMember("critical_pkt", CRITICAL_PKT, allocator);
-	resultDoc.AddMember("elapsed_time", ELAPSED_TIME, allocator);
-
-	typedef rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>> StringBuffer;
-	StringBuffer buf (&allocator);
-	rapidjson::Writer<StringBuffer> writer(buf);
-	resultDoc.Accept (writer);
-	std::string resultJson (buf.GetString(), buf.GetSize());
-
-	std::filesystem::path reportDir(REPORT_DIR);
-	std::filesystem::path reportName(INDEX_NAME + string_format("_%d.json", WINDOW_SIZE));
-	std::filesystem::path reportPath = reportDir / reportName;
-	std::ofstream of (reportPath);
-	of << resultJson;
-	if (!of.good()) throw std::runtime_error ("Can't write the JSON string to the file!");
-	of.close();
-}
-
 int main(int argc, char** argv)
 {
 	bloom_filter bf;
 	EXIT_FLAG = false;
 	END_FILTERING = false;
-	CRITICAL_PKT = 0;
 	PROCESSED_PKT_Q = 0;
 	PROCESSED_SC_Q = 0;
-	ELAPSED_TIME = 0.0;
 	bool offlineMode = false;
 	std::string inputStr = "";
 	signal(SIGINT, sigint_handler);
@@ -92,10 +41,11 @@ int main(int argc, char** argv)
 	std::thread filter_t(filtering_worker, bf);
 	std::thread search_t(search_worker);
 	setup_capture(inputStr, offlineMode);
-	double clock_start = std::clock();
+	// double clock_start = std::clock();
 	filter_t.join();
 	search_t.join();
-	ELAPSED_TIME += (std::clock() - clock_start) / CLOCKS_PER_SEC;
-	write_report();
+	for (auto it = CRITICAL_CHUNK_TABLE.begin(); it!= CRITICAL_CHUNK_TABLE.end(); it++){
+		while((*it).second.size()) (*it).second.pop();
+	}
 	return 0;
 }

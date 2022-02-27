@@ -65,8 +65,11 @@ bool parse_config(char* arg) {
 			else if (key == "BLOOMFILTER_ERROR_RATE") {
 				BF_ERROR_RATE = std::stof(value);
 			}
-			else if (key == "CRITICAL_RATIO"){
-				CRITICAL_RATIO = std::stof(value);
+			else if (key == "THETA_C"){
+				THETA_C = std::stof(value);
+			}
+			else if (key == "THETA_H"){
+				THETA_H = (unsigned int) std::stoi(value);
 			}
 			else if (key == "INDEX_DIR") {
 				INDEX_DIR = value;

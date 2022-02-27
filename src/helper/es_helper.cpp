@@ -226,7 +226,13 @@ std::string es::search(std::string _address, std::vector<std::string> _md5Chunks
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
 	resCode = curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
-
+	if (resCode != CURLE_OK){
+		CURLcode error;
+		long responseCode;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &responseCode);
+		std::cout << responseCode << std::endl;
+		std::cout << curl_easy_strerror(error) << std::endl;
+	}
 	return readBuffer;
 }
 
@@ -268,8 +274,8 @@ std::string es::data::get_query_json(std::vector<std::string> _md5Chunks) {
 	query.SetObject();
 	rapidjson::Document::AllocatorType& allocator = query.GetAllocator();
 	query.AddMember("_source", false, allocator);
-	query.AddMember("explain", true, allocator);
-	query.AddMember("size", 10, allocator);
+	query.AddMember("explain", false, allocator);
+	query.AddMember("size", 1, allocator);
 	rapidjson::Value _bool(rapidjson::kObjectType);
 	rapidjson::Value _should(rapidjson::kObjectType);
 	rapidjson::Value _termArray(rapidjson::kArrayType);

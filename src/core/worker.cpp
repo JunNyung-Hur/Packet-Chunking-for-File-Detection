@@ -17,7 +17,7 @@ void filtering_worker(bloom_filter bf) {
 			delete[] pktPair.first;
 			continue;
 		}
-		std::cout << string_format("\r(처리 대기 패킷: %d, 처리된 패킷: %d), (검색 대기 세션: %d, 검색된 세션: %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT_Q, SC_MAP_QUEUE.size(), PROCESSED_SC_Q) << std::flush;
+		std::cout << string_format("\r(처리 대기 패킷: %d, 처리된 패킷: %d), (검색 대기 세션: %d, 검색된 세션: %d) ... ", PKT_QUEUE.size(), PROCESSED_PKT_Q, CRITICAL_CHUNK_TABLE.size(), PROCESSED_SC_Q) << std::flush;
 		std::vector<std::string> chunks = ae_chunking(pktPair.first, pktPair.second, WINDOW_SIZE);
 		std::vector<std::string> filteredChunks;
 		for (auto it = chunks.begin(); it != chunks.end(); it++) {
@@ -32,9 +32,13 @@ void filtering_worker(bloom_filter bf) {
 		}
 		if (filteredChunks.size()) {
 			double criticalRatio = (double)filteredChunks.size()/(double)chunks.size();
-			if (criticalRatio >= CRITICAL_RATIO){
-				CRITICAL_PKT++;
-				SC_MAP_QUEUE.push(std::make_pair(sessionTuple, filteredChunks));
+			if (criticalRatio >= THETA_C){
+				if (CRITICAL_CHUNK_TABLE.find(sessionTuple) == CRITICAL_CHUNK_TABLE.end()){
+					CRITICAL_CHUNK_TABLE.insert(std::pair(sessionTuple, ThreadsafeQueue<std::string>()));
+				}
+				for (auto it=filteredChunks.begin(); it != filteredChunks.end(); it++){
+					CRITICAL_CHUNK_TABLE[sessionTuple].push((*it));
+				}
 			}
 		}
 		delete[] pktPair.first;
@@ -43,51 +47,62 @@ void filtering_worker(bloom_filter bf) {
 }
 
 void search_worker(){
+	std::filesystem::path reportDir(REPORT_DIR);
+	std::filesystem::path reportName(INDEX_NAME + string_format("_%d_%.1f_%d.txt", WINDOW_SIZE, THETA_C, THETA_H));
+	std::filesystem::path reportPath = reportDir / reportName;
+	std::ofstream of;
 	while (true) {
-		if (not SC_MAP_QUEUE.size()) {
-			if (END_FILTERING) break;
-			else continue;
-		}
-		std::vector<std::string> sessionTupleVec;
-		std::vector<std::vector<std::string>> filteredChunksVec;
-		unsigned int batchSize = std::min(SC_MAP_QUEUE.size(), (unsigned long) 1000);
-		for (unsigned int i = 0; i < batchSize; i++){
-			std::optional<std::pair<std::string, std::vector<std::string>>> scItemOpt = SC_MAP_QUEUE.pop();
-			std::pair<std::string, std::vector<std::string>> scItem = *scItemOpt;
-			sessionTupleVec.push_back(scItem.first);
-			filteredChunksVec.push_back(scItem.second);
-		}
-
-		std::string esRes = es::msearch(ES_HOST+":"+ES_PORT, filteredChunksVec, INDEX_NAME, WINDOW_SIZE);
-
-		rapidjson::Document resJson;
-		resJson.Parse(esRes.c_str());
-		rapidjson::Value& responses = resJson["responses"];
-		unsigned int sessionTupleIdx = 0;
-		for (rapidjson::Value::ConstValueIterator response = responses.Begin(); response != responses.End(); response++){
-			std::string sessionTuple = sessionTupleVec[sessionTupleIdx];
-			for (rapidjson::Value::ConstValueIterator hit = (*response)["hits"]["hits"].Begin(); hit != (*response)["hits"]["hits"].End(); hit++){
-				if (RESULT_MAP.find(sessionTuple) == RESULT_MAP.end()) {
-					hit_map new_hm;
-					RESULT_MAP.insert(std::pair(sessionTuple, new_hm));
+		for (auto it=CRITICAL_CHUNK_TABLE.begin(); it!=CRITICAL_CHUNK_TABLE.end(); it++){
+			std::vector<std::vector<std::string>> filteredChunksVec;
+			while ((*it).second.size() >= THETA_H){
+				std::vector<std::string> filteredChunks;
+				for (unsigned int i = 0; i < THETA_H; i++){
+					filteredChunks.push_back((*(*it).second.pop()));
 				}
-				std::string hitId = (*hit)["_id"].GetString();
-				std::set<std::string> hit_term_set;
-				for (const auto& detail : (*hit)["_explanation"]["details"].GetArray()) {
-					std::string description = detail["description"].GetString();
-					hit_term_set.insert(description.substr(12, 32));
-				}
-				if (RESULT_MAP[sessionTuple].find(hitId) == RESULT_MAP[sessionTuple].end()) {
-					set_map new_sm;
-					new_sm.insert(std::pair("hit_term_set", hit_term_set));
-					RESULT_MAP[sessionTuple].insert(std::pair(hitId, new_sm));
-				}
-				else {
-					RESULT_MAP[sessionTuple][hitId]["hit_term_set"].insert(hit_term_set.begin(), hit_term_set.end());
+				filteredChunksVec.push_back(filteredChunks);
+			}
+			if (!filteredChunksVec.size()){
+				continue;
+			}
+			std::string esRes = es::msearch(ES_HOST+":"+ES_PORT, filteredChunksVec, INDEX_NAME, WINDOW_SIZE);
+			
+			rapidjson::Document resJson;
+			of.open(reportPath, std::ios::app);
+			resJson.Parse(esRes.c_str());
+			if (!resJson.IsObject()){
+				std::cout << "search error1!" << std::endl;
+				std::cout << esRes << std::endl;
+				continue; 
+			}
+			if (!resJson.HasMember("responses")){
+				std::cout << "search error2" << std::endl;
+				std::cout << esRes << std::endl;
+				continue; 
+			}
+			rapidjson::Value& responses = resJson["responses"];
+			for (rapidjson::Value::ConstValueIterator response = responses.Begin(); response != responses.End(); response++){
+				for (rapidjson::Value::ConstValueIterator hit = (*response)["hits"]["hits"].Begin(); hit != (*response)["hits"]["hits"].End(); hit++){
+					of << (*it).first << "," << (*hit)["_id"].GetString() << "," << (*hit)["_score"].GetFloat() << std::endl;;
 				}
 			}
-			sessionTupleIdx ++;
+			of.close();
+			filteredChunksVec.clear();
+			PROCESSED_SC_Q ++;
 		}
-		PROCESSED_SC_Q += sessionTupleIdx;
+		if (END_FILTERING) {
+			bool isRemain = false;
+			for (auto it=CRITICAL_CHUNK_TABLE.begin(); it!=CRITICAL_CHUNK_TABLE.end(); it++){
+				if ((*it).second.size() >= THETA_H){	
+					isRemain = true;
+					break;
+				}
+			}
+			if (isRemain){
+				continue;
+			}
+			else{
+				break;
+			}
+		}
 	}
 }
