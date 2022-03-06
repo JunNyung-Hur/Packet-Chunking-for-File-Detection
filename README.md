@@ -28,7 +28,7 @@ THETA_H = 16                     # recommend using this between 16 and 64
 MTU = 1500                       # set your network MTU
 
 # Directories location
-INDEX_DIR = /home/user/index            # Directory path where important files are located to be identified
+INDEX_DIR = /home/user/index            # Directory path containing important files that need to be identified 
 BLOOMFILTER_DIR = /home/user/bf         # Directory path for storing bloom filter (please make it!)
 REPORT_DIR = /home/user/report          # Directory path for storing detection logs
 
