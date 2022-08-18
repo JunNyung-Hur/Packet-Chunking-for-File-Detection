@@ -21,10 +21,10 @@ $ make
 - edit "config.txt" in project root
 ```
 # Constants
-CHUNKING_WINDOW_SIZE = 128       # Making this option larger provides more accurate search quality, but fewer search files  
+CHUNKING_WINDOW_SIZE = 128       # Making this option larger provides more accurate search quality, but it can lead to more false-negative case.
 BLOOMFILTER_ERROR_RATE = 0.001   # It depends on your system memory, but 0.001 is enough.
-THETA_C = 0.5                    # recommend using this 0.5
-THETA_H = 16                     # recommend using this between 16 and 64
+THETA_C = 0.5                    # This value is recommended as 0.5
+THETA_H = 16                     # This value is recommended between 16 and 64
 MTU = 1500                       # set your network MTU
 
 # Directories location
