@@ -1,5 +1,5 @@
 # Packet Chunking for File Detection
-
+- IEEE/ACM Transactions on Networking (Accepted)
 ## Purpose
 - identifying important files transfer in network traffic
 
